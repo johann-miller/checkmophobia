@@ -1,6 +1,7 @@
 <script>
 	import Banner from "./components/Banner.svelte"
 	import ChecklistItem from "./components/ChecklistItem.svelte"
+	import Ghost from "./components/Ghost.svelte"
 	
 	let evidence = [
 		{title: "EMF 5"},
@@ -13,7 +14,48 @@
 	]
 
 	let ghosts = [
-		{name: "Phantom", }
+		{
+			name: "Phantom",
+			description: "May be summoned by ouji boards",
+			strength: "Looking at a phantom will dramatically lower sanity",
+			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
+			evidence: ["EMF 5", "Ghost orb", "Freezing"],
+		},
+		{
+			name: "Phantom",
+			description: "May be summoned by ouji boards",
+			strength: "Looking at a phantom will dramatically lower sanity",
+			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
+			evidence: ["EMF 5", "Ghost orb", "Freezing"],
+		},
+		{
+			name: "Phantom",
+			description: "May be summoned by ouji boards",
+			strength: "Looking at a phantom will dramatically lower sanity",
+			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
+			evidence: ["EMF 5", "Ghost orb", "Freezing"],
+		},
+		{
+			name: "Phantom",
+			description: "May be summoned by ouji boards",
+			strength: "Looking at a phantom will dramatically lower sanity",
+			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
+			evidence: ["EMF 5", "Ghost orb", "Freezing"],
+		},
+		{
+			name: "Phantom",
+			description: "May be summoned by ouji boards",
+			strength: "Looking at a phantom will dramatically lower sanity",
+			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
+			evidence: ["EMF 5", "Ghost orb", "Freezing"],
+		},
+		{
+			name: "Phantom",
+			description: "May be summoned by ouji boards",
+			strength: "Looking at a phantom will dramatically lower sanity",
+			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
+			evidence: ["EMF 5", "Ghost orb", "Freezing"],
+		},
 	]
 </script>
 
@@ -23,7 +65,7 @@
 		<div class="checklists">
 			<ul class="evidence">
 				<li class="list-title">
-					<span>Evidence</span>
+					<h2>Evidence</h2>
 				</li>
 				{#each evidence as {title}}
 					<li>
@@ -33,7 +75,7 @@
 			</ul>
 			<ul class="exclude">
 				<li class="list-title">
-					<span>Exclude</span>
+					<h2>Exclude</h2>
 				</li>
 				{#each evidence as {title}}
 					<li>
@@ -42,8 +84,14 @@
 				{/each}
 			</ul>
 		</div>
-		<ul class="ghosts">
-		</ul>
+		<div class="ghosts-wrapper">
+			<h2 class="ghosts-title">Possible ghosts</h2>
+			<ul class="ghosts">
+				{#each ghosts as ghost}
+					<Ghost ghost={ghost}/>
+				{/each}
+			</ul>
+		</div>
 	</main>
 </div>
 
@@ -51,7 +99,9 @@
 	main {
 		display: flex;
 		height: 100%;
+		max-height: 100%;
 		padding: 0.75rem;
+		overflow-y: hidden;
 	}
 
 	.checklists {
@@ -60,7 +110,7 @@
 		width: auto;
 	}
 
-	.checklists > ul {
+	.checklists > ul, .ghosts-wrapper {
 		padding: 1rem;
 		max-height: 100%;
 		margin-right: 0.75rem;
@@ -68,10 +118,30 @@
 		background: #38383b;
 	}
 
+	.ghosts {
+		height: 100%;
+		overflow-y: scroll;
+	}
+
+	.ghosts-wrapper {
+		width: 100%;
+		overflow-y: hidden;
+	}
+
+	.ghosts-title {
+		margin-top: 0;
+	}
+
+
 	.list-title {
-		font-size: 1.2rem;
 		text-align: center;
 		margin-bottom: 0.75rem;
+	}
+
+	.list-title > h2 {
+		margin-top: 0.5rem;
+		font-size: 1.5rem;
+		font-weight: normal;
 	}
 
 	.wrapper {
