@@ -1,8 +1,30 @@
 <script>
-    export let title = "Title";
+    import {evidence} from "../stores/stores.js"
+    export let title = "Title"
+
+    let selected = false
+
+    function toggle() {
+        selected = !selected
+
+        // Add evidence if toggled on, remove if toggled off
+        if (selected = true) {
+            evidence.update(value => value)
+            console.log(evidence.value)
+        } else {
+            evidence.update(value => {
+                let index = value.indexOf(title)
+                if (index > -1) {
+                    evidence.splice(index,1)
+                }
+            })
+        }
+
+        //evidence.subscribe(value => console.log(value))
+    }
 </script>
 
-<button class="wrapper">
+<button class="wrapper" class:selected on:click={() => toggle()}>
     <img src="/images/dummy-icon.svg" alt="ghost" class="icon">
     <span class="title">{title}</span>
 </button>
@@ -31,6 +53,10 @@
 
     .wrapper:hover {
         opacity: 0.7;
+    }
+
+    .selected {
+        filter: invert(71%) sepia(77%) saturate(5163%) hue-rotate(83deg) brightness(124%) contrast(117%);
     }
 
     .title {

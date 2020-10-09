@@ -32,12 +32,7 @@
         padding: 0.25rem 0.5rem;
         margin-right: 0.5rem;
     }
-
-    .evidence-title {
-        margin: 0;
-        margin-bottom: 0.75rem;
-    }
-
+    
     .ghost-name {
         margin: 0;
         margin-bottom: 0.75rem;

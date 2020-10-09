@@ -1,3 +1,3 @@
 import {writable} from 'svelte/store'
 
-let count = writable([])
+export let evidence = writable([])
