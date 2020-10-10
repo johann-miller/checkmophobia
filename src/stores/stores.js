@@ -1,3 +1,6 @@
-import {writable} from 'svelte/store'
+import {writable, readable} from 'svelte/store'
 
-export let evidence = writable([])
+export const confirmed = writable([])
+export const excluded = writable([])
+export const ghosts = readable([])
+export const possibleGhosts = writable([])

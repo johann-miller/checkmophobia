@@ -1,30 +1,97 @@
 <script>
-    import {evidence} from "../stores/stores.js"
+    import {confirmed, excluded} from "../stores/stores.js"
     export let title = "Title"
-
+    export let exclude = false
+    let list
+    let active = true
     let selected = false
+    let disabled = false
+    let oppositeSelected = false
+    let listFull = false
+
+    // If this component is an "exclude" button, set the list to manipulate to the excluded evidence,
+    // else set it to the evidence list
+    if (exclude) {
+        list = excluded
+    } else {
+        list = confirmed
+    }
+
+    // Disability logic
+    confirmed.subscribe(value => {
+        listFull = (value.length >= 3)
+
+        if (exclude) {
+            if (isOppositeSelected(value)) {
+                disabled = true
+            } else {
+                disabled = false
+            }
+        } else {
+            if (listFull && !selected) {
+                disabled = true
+            } else {
+                if (!oppositeSelected) {
+                    disabled = false
+                }
+            }
+        }
+    })
+
+    excluded.subscribe(value => {
+        if (!exclude) {
+            if (isOppositeSelected(value)) {
+                disabled = true
+            } else {
+                if (!listFull) {
+                    disabled = false
+                }
+            }
+        }
+    })
+
+    function isOppositeSelected(value) {
+        let index
+        index = value.indexOf(title)
+        
+        if (index > -1) {
+            oppositeSelected = true
+        } else {
+            oppositeSelected = false
+        }
+
+        return oppositeSelected
+    }
 
     function toggle() {
         selected = !selected
 
-        // Add evidence if toggled on, remove if toggled off
-        if (selected = true) {
-            evidence.update(value => value)
-            console.log(evidence.value)
-        } else {
-            evidence.update(value => {
-                let index = value.indexOf(title)
-                if (index > -1) {
-                    evidence.splice(index,1)
-                }
-            })
-        }
+        let array = $list
 
-        //evidence.subscribe(value => console.log(value))
+        // Add evidence if toggled on, remove if toggled off
+        if (selected) {
+            array.push(title)
+            list.set(array)
+            console.log($confirmed)
+        } else {
+            let index = array.indexOf(title)
+
+            if (index > -1) {
+                array.splice(index, 1)
+                list.set(array)
+                console.log($confirmed)
+            }
+        }
     }
 </script>
 
-<button class="wrapper" class:selected on:click={() => toggle()}>
+<button
+    class="wrapper"
+    class:selected-confirmed={selected && !exclude}
+    class:selected-excluded={selected && exclude}
+    on:click={() => toggle()}
+    {disabled}>
+
     <img src="/images/dummy-icon.svg" alt="ghost" class="icon">
     <span class="title">{title}</span>
 </button>
@@ -47,16 +114,30 @@
         padding: 0.25rem;
         height: 6.5rem;
         width: 6.5rem;
-        transition: filter 0.1s ease-in-out;
-        transition: opacity 0.1s ease-in-out;
+        transition: filter 0.2s ease-in-out;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .wrapper:active {
+        background: none;
+        opacity: 0.5;
     }
 
     .wrapper:hover {
         opacity: 0.7;
     }
 
-    .selected {
+    .wrapper:disabled {
+        opacity: 0.3;
+        filter: none;
+    }
+
+    .selected-confirmed {
         filter: invert(71%) sepia(77%) saturate(5163%) hue-rotate(83deg) brightness(124%) contrast(117%);
+    }
+
+    .selected-excluded {
+        filter: invert(7%) sepia(93%) saturate(5899%) hue-rotate(11deg) brightness(104%) contrast(115%);
     }
 
     .title {

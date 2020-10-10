@@ -79,7 +79,7 @@
 				</li>
 				{#each evidence as {title}}
 					<li>
-						<ChecklistItem title={title}/>
+						<ChecklistItem title={title} exclude={true}/>
 					</li>
 				{/each}
 			</ul>
