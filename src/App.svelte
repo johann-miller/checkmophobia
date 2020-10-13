@@ -1,7 +1,13 @@
 <script>
+	import {onMount} from "svelte"
+	import {ghosts, possibleGhosts} from "./stores/stores.js"
 	import Banner from "./components/Banner.svelte"
 	import ChecklistItem from "./components/ChecklistItem.svelte"
 	import Ghost from "./components/Ghost.svelte"
+
+	onMount(() => {
+		possibleGhosts.set($ghosts)
+	})
 	
 	let evidence = [
 		{title: "EMF 5"},
@@ -10,52 +16,6 @@
 		{title: "Ghost orb"},
 		{title: "Spirit box"},
 		{title: "Writing"},
-		
-	]
-
-	let ghosts = [
-		{
-			name: "Phantom",
-			description: "May be summoned by ouji boards",
-			strength: "Looking at a phantom will dramatically lower sanity",
-			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-			evidence: ["EMF 5", "Ghost orb", "Freezing"],
-		},
-		{
-			name: "Phantom",
-			description: "May be summoned by ouji boards",
-			strength: "Looking at a phantom will dramatically lower sanity",
-			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-			evidence: ["EMF 5", "Ghost orb", "Freezing"],
-		},
-		{
-			name: "Phantom",
-			description: "May be summoned by ouji boards",
-			strength: "Looking at a phantom will dramatically lower sanity",
-			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-			evidence: ["EMF 5", "Ghost orb", "Freezing"],
-		},
-		{
-			name: "Phantom",
-			description: "May be summoned by ouji boards",
-			strength: "Looking at a phantom will dramatically lower sanity",
-			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-			evidence: ["EMF 5", "Ghost orb", "Freezing"],
-		},
-		{
-			name: "Phantom",
-			description: "May be summoned by ouji boards",
-			strength: "Looking at a phantom will dramatically lower sanity",
-			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-			evidence: ["EMF 5", "Ghost orb", "Freezing"],
-		},
-		{
-			name: "Phantom",
-			description: "May be summoned by ouji boards",
-			strength: "Looking at a phantom will dramatically lower sanity",
-			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-			evidence: ["EMF 5", "Ghost orb", "Freezing"],
-		},
 	]
 </script>
 
@@ -87,7 +47,7 @@
 		<div class="ghosts-wrapper">
 			<h2 class="ghosts-title">Possible ghosts</h2>
 			<ul class="ghosts">
-				{#each ghosts as ghost}
+				{#each $possibleGhosts as ghost}
 					<Ghost ghost={ghost}/>
 				{/each}
 			</ul>

@@ -1,5 +1,5 @@
 <script>
-    import {confirmed, excluded} from "../stores/stores.js"
+    import {confirmed, excluded, ghosts, possibleGhosts} from "../stores/stores.js"
     export let title = "Title"
     export let exclude = false
     let list
@@ -50,6 +50,7 @@
         }
     })
 
+    // Check if the opposite evidence/exclude button is selected
     function isOppositeSelected(value) {
         let index
         index = value.indexOf(title)
@@ -63,6 +64,7 @@
         return oppositeSelected
     }
 
+    // Call when the button is pressed
     function toggle() {
         selected = !selected
 
@@ -72,14 +74,12 @@
         if (selected) {
             array.push(title)
             list.set(array)
-            console.log($confirmed)
         } else {
             let index = array.indexOf(title)
 
             if (index > -1) {
                 array.splice(index, 1)
                 list.set(array)
-                console.log($confirmed)
             }
         }
     }

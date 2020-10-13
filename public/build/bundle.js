@@ -39,6 +39,11 @@ var app = (function () {
         const unsub = store.subscribe(...callbacks);
         return unsub.unsubscribe ? () => unsub.unsubscribe() : unsub;
     }
+    function get_store_value(store) {
+        let value;
+        subscribe(store, _ => value = _)();
+        return value;
+    }
     function component_subscribe(component, store, callback) {
         component.$$.on_destroy.push(subscribe(store, callback));
     }
@@ -92,6 +97,14 @@ var app = (function () {
     let current_component;
     function set_current_component(component) {
         current_component = component;
+    }
+    function get_current_component() {
+        if (!current_component)
+            throw new Error(`Function called outside component initialization`);
+        return current_component;
+    }
+    function onMount(fn) {
+        get_current_component().$$.on_mount.push(fn);
     }
 
     const dirty_components = [];
@@ -194,12 +207,6 @@ var app = (function () {
             block.o(local);
         }
     }
-
-    const globals = (typeof window !== 'undefined'
-        ? window
-        : typeof globalThis !== 'undefined'
-            ? globalThis
-            : global);
     function create_component(block) {
         block && block.c();
     }
@@ -401,6 +408,215 @@ var app = (function () {
         $inject_state() { }
     }
 
+    const subscriber_queue = [];
+    /**
+     * Creates a `Readable` store that allows reading by subscription.
+     * @param value initial value
+     * @param {StartStopNotifier}start start and stop notifications for subscriptions
+     */
+    function readable(value, start) {
+        return {
+            subscribe: writable(value, start).subscribe
+        };
+    }
+    /**
+     * Create a `Writable` store that allows both updating and reading by subscription.
+     * @param {*=}value initial value
+     * @param {StartStopNotifier=}start start and stop notifications for subscriptions
+     */
+    function writable(value, start = noop) {
+        let stop;
+        const subscribers = [];
+        function set(new_value) {
+            if (safe_not_equal(value, new_value)) {
+                value = new_value;
+                if (stop) { // store is ready
+                    const run_queue = !subscriber_queue.length;
+                    for (let i = 0; i < subscribers.length; i += 1) {
+                        const s = subscribers[i];
+                        s[1]();
+                        subscriber_queue.push(s, value);
+                    }
+                    if (run_queue) {
+                        for (let i = 0; i < subscriber_queue.length; i += 2) {
+                            subscriber_queue[i][0](subscriber_queue[i + 1]);
+                        }
+                        subscriber_queue.length = 0;
+                    }
+                }
+            }
+        }
+        function update(fn) {
+            set(fn(value));
+        }
+        function subscribe(run, invalidate = noop) {
+            const subscriber = [run, invalidate];
+            subscribers.push(subscriber);
+            if (subscribers.length === 1) {
+                stop = start(set) || noop;
+            }
+            run(value);
+            return () => {
+                const index = subscribers.indexOf(subscriber);
+                if (index !== -1) {
+                    subscribers.splice(index, 1);
+                }
+                if (subscribers.length === 0) {
+                    stop();
+                    stop = null;
+                }
+            };
+        }
+        return { set, update, subscribe };
+    }
+
+    const confirmed = writable([]);
+    const excluded = writable([]);
+    const ghosts = readable([
+        {
+            name: "Banshee",
+            description: "A banshee",
+            evidence: ["EMF 5", "Fingerprints", "Freezing"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Demon",
+            description: "A demon",
+            evidence: ["Freezing", "Ghost writing", "Spirit box"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Jinn",
+            description: "A jinn",
+            evidence: ["EMF 5", "Ghost orb", "Spirit box"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Mare",
+            description: "A mare",
+            evidence: ["Freezing", "Ghost orb", "Spirit box"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Oni",
+            description: "An oni ",
+            evidence: ["EMF 5", "Spirit box", "Writing"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Phantom",
+            description: "A phantom",
+            evidence: ["EMF 5", "Freezing", "Ghost orb"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Poltergeist",
+            description: "A poltergeist",
+            evidence: ["Fingerprints", "Ghost orb", "Spirit box"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Revenant",
+            description: "A revenant",
+            evidence: ["EMF 5", "Fingerprints", "Writing"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Shade",
+            description: "A shade",
+            evidence: ["EMF 5", "Ghost orb", "Writing"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Spirit",
+            description: "A spirit",
+            evidence: ["Fingerprints", "Spirit box", "Writing"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Wraith",
+            description: "A wraith",
+            evidence: ["Fingerprints", "Freezing", "Spirit box"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+        {
+            name: "Yurei",
+            description: "A yurei",
+            evidence: ["Freezing", "Ghost orb", "Writing"],
+            strength: "Strength",
+            weakness: "Weakness"
+        },
+    ]);
+    let possibleGhosts = writable([]);
+
+    const evidenceList = ["EMF 5", "Fingerprints", "Freezing", "Ghost orb", "Spirit box", "Writing"];
+
+    confirmed.subscribe(value => {
+        let array = [];
+        let ghostList = get_store_value(ghosts);
+
+        ghostList.forEach(ghost => {
+            let evidence = ghost.evidence;
+            let possible = true;
+
+            value.forEach(item => {
+                let index = evidence.indexOf(item);
+
+                if (index == -1) {
+                    possible = false;
+                }
+            });
+
+            if (possible) {
+                array.push(ghost);
+            }
+        });
+
+        possibleGhosts.set(array);
+        updateExcluded();
+    });
+
+    function updateExcluded() {
+        let array = [];
+        let possibleEvidence = [];
+        let ghostList = get_store_value(possibleGhosts);
+
+        ghostList.forEach(ghost => {
+            ghost.evidence.forEach(evidence => {
+                let index = possibleEvidence.indexOf(evidence);
+
+                if (index == -1) {
+                    possibleEvidence.push(evidence);
+                }
+            });
+        });
+
+        evidenceList.forEach(item => {
+            let index = possibleEvidence.indexOf(item);
+
+            if (index == -1) {
+                let excludedIndex = array.indexOf(item);
+
+                if (excludedIndex == -1) {
+                    array.push(item);
+                }
+            }
+        });
+
+        excluded.set(array);
+    }
+
     /* src/components/Banner.svelte generated by Svelte v3.29.0 */
 
     const file = "src/components/Banner.svelte";
@@ -471,64 +687,7 @@ var app = (function () {
     	}
     }
 
-    const subscriber_queue = [];
-    /**
-     * Create a `Writable` store that allows both updating and reading by subscription.
-     * @param {*=}value initial value
-     * @param {StartStopNotifier=}start start and stop notifications for subscriptions
-     */
-    function writable(value, start = noop) {
-        let stop;
-        const subscribers = [];
-        function set(new_value) {
-            if (safe_not_equal(value, new_value)) {
-                value = new_value;
-                if (stop) { // store is ready
-                    const run_queue = !subscriber_queue.length;
-                    for (let i = 0; i < subscribers.length; i += 1) {
-                        const s = subscribers[i];
-                        s[1]();
-                        subscriber_queue.push(s, value);
-                    }
-                    if (run_queue) {
-                        for (let i = 0; i < subscriber_queue.length; i += 2) {
-                            subscriber_queue[i][0](subscriber_queue[i + 1]);
-                        }
-                        subscriber_queue.length = 0;
-                    }
-                }
-            }
-        }
-        function update(fn) {
-            set(fn(value));
-        }
-        function subscribe(run, invalidate = noop) {
-            const subscriber = [run, invalidate];
-            subscribers.push(subscriber);
-            if (subscribers.length === 1) {
-                stop = start(set) || noop;
-            }
-            run(value);
-            return () => {
-                const index = subscribers.indexOf(subscriber);
-                if (index !== -1) {
-                    subscribers.splice(index, 1);
-                }
-                if (subscribers.length === 0) {
-                    stop();
-                    stop = null;
-                }
-            };
-        }
-        return { set, update, subscribe };
-    }
-
-    const confirmed = writable([]);
-    const excluded = writable([]);
-
     /* src/components/ChecklistItem.svelte generated by Svelte v3.29.0 */
-
-    const { console: console_1 } = globals;
     const file$1 = "src/components/ChecklistItem.svelte";
 
     function create_fragment$1(ctx) {
@@ -551,14 +710,14 @@ var app = (function () {
     			if (img.src !== (img_src_value = "/images/dummy-icon.svg")) attr_dev(img, "src", img_src_value);
     			attr_dev(img, "alt", "ghost");
     			attr_dev(img, "class", "icon svelte-va1k98");
-    			add_location(img, file$1, 94, 4, 2244);
+    			add_location(img, file$1, 94, 4, 2296);
     			attr_dev(span, "class", "title svelte-va1k98");
-    			add_location(span, file$1, 95, 4, 2308);
+    			add_location(span, file$1, 95, 4, 2360);
     			attr_dev(button, "class", "wrapper svelte-va1k98");
     			button.disabled = /*disabled*/ ctx[4];
     			toggle_class(button, "selected-confirmed", /*selected*/ ctx[3] && !/*exclude*/ ctx[1]);
     			toggle_class(button, "selected-excluded", /*selected*/ ctx[3] && /*exclude*/ ctx[1]);
-    			add_location(button, file$1, 87, 0, 2063);
+    			add_location(button, file$1, 87, 0, 2115);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -615,9 +774,6 @@ var app = (function () {
     		$$unsubscribe_list = noop,
     		$$subscribe_list = () => ($$unsubscribe_list(), $$unsubscribe_list = subscribe(list, $$value => $$invalidate(9, $list = $$value)), list);
 
-    	let $confirmed;
-    	validate_store(confirmed, "confirmed");
-    	component_subscribe($$self, confirmed, $$value => $$invalidate(10, $confirmed = $$value));
     	$$self.$$.on_destroy.push(() => $$unsubscribe_list());
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots("ChecklistItem", slots, []);
@@ -671,6 +827,7 @@ var app = (function () {
     		}
     	});
 
+    	// Check if the opposite evidence/exclude button is selected
     	function isOppositeSelected(value) {
     		let index;
     		index = value.indexOf(title);
@@ -684,6 +841,7 @@ var app = (function () {
     		return oppositeSelected;
     	}
 
+    	// Call when the button is pressed
     	function toggle() {
     		$$invalidate(3, selected = !selected);
     		let array = $list;
@@ -692,14 +850,12 @@ var app = (function () {
     		if (selected) {
     			array.push(title);
     			list.set(array);
-    			console.log($confirmed);
     		} else {
     			let index = array.indexOf(title);
 
     			if (index > -1) {
     				array.splice(index, 1);
     				list.set(array);
-    				console.log($confirmed);
     			}
     		}
     	}
@@ -707,7 +863,7 @@ var app = (function () {
     	const writable_props = ["title", "exclude"];
 
     	Object.keys($$props).forEach(key => {
-    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== "$$") console_1.warn(`<ChecklistItem> was created with unknown prop '${key}'`);
+    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== "$$") console.warn(`<ChecklistItem> was created with unknown prop '${key}'`);
     	});
 
     	const click_handler = () => toggle();
@@ -720,6 +876,8 @@ var app = (function () {
     	$$self.$capture_state = () => ({
     		confirmed,
     		excluded,
+    		ghosts,
+    		possibleGhosts,
     		title,
     		exclude,
     		list,
@@ -730,8 +888,7 @@ var app = (function () {
     		listFull,
     		isOppositeSelected,
     		toggle,
-    		$list,
-    		$confirmed
+    		$list
     	});
 
     	$$self.$inject_state = $$props => {
@@ -1037,23 +1194,23 @@ var app = (function () {
 
     function get_each_context$1(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[2] = list[i];
+    	child_ctx[3] = list[i];
     	return child_ctx;
     }
 
     function get_each_context_1(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[5] = list[i].title;
+    	child_ctx[6] = list[i].title;
     	return child_ctx;
     }
 
     function get_each_context_2(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[5] = list[i].title;
+    	child_ctx[6] = list[i].title;
     	return child_ctx;
     }
 
-    // (70:4) {#each evidence as {title}}
+    // (30:4) {#each evidence as {title}}
     function create_each_block_2(ctx) {
     	let li;
     	let checklistitem;
@@ -1061,7 +1218,7 @@ var app = (function () {
     	let current;
 
     	checklistitem = new ChecklistItem({
-    			props: { title: /*title*/ ctx[5] },
+    			props: { title: /*title*/ ctx[6] },
     			$$inline: true
     		});
 
@@ -1070,7 +1227,7 @@ var app = (function () {
     			li = element("li");
     			create_component(checklistitem.$$.fragment);
     			t = space();
-    			add_location(li, file$3, 70, 5, 2231);
+    			add_location(li, file$3, 30, 5, 677);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, li, anchor);
@@ -1098,14 +1255,14 @@ var app = (function () {
     		block,
     		id: create_each_block_2.name,
     		type: "each",
-    		source: "(70:4) {#each evidence as {title}}",
+    		source: "(30:4) {#each evidence as {title}}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (80:4) {#each evidence as {title}}
+    // (40:4) {#each evidence as {title}}
     function create_each_block_1(ctx) {
     	let li;
     	let checklistitem;
@@ -1113,7 +1270,7 @@ var app = (function () {
     	let current;
 
     	checklistitem = new ChecklistItem({
-    			props: { title: /*title*/ ctx[5], exclude: true },
+    			props: { title: /*title*/ ctx[6], exclude: true },
     			$$inline: true
     		});
 
@@ -1122,7 +1279,7 @@ var app = (function () {
     			li = element("li");
     			create_component(checklistitem.$$.fragment);
     			t = space();
-    			add_location(li, file$3, 80, 5, 2426);
+    			add_location(li, file$3, 40, 5, 872);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, li, anchor);
@@ -1150,20 +1307,20 @@ var app = (function () {
     		block,
     		id: create_each_block_1.name,
     		type: "each",
-    		source: "(80:4) {#each evidence as {title}}",
+    		source: "(40:4) {#each evidence as {title}}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (90:4) {#each ghosts as ghost}
+    // (50:4) {#each $possibleGhosts as ghost}
     function create_each_block$1(ctx) {
     	let ghost;
     	let current;
 
     	ghost = new Ghost({
-    			props: { ghost: /*ghost*/ ctx[2] },
+    			props: { ghost: /*ghost*/ ctx[3] },
     			$$inline: true
     		});
 
@@ -1175,7 +1332,11 @@ var app = (function () {
     			mount_component(ghost, target, anchor);
     			current = true;
     		},
-    		p: noop,
+    		p: function update(ctx, dirty) {
+    			const ghost_changes = {};
+    			if (dirty & /*$possibleGhosts*/ 1) ghost_changes.ghost = /*ghost*/ ctx[3];
+    			ghost.$set(ghost_changes);
+    		},
     		i: function intro(local) {
     			if (current) return;
     			transition_in(ghost.$$.fragment, local);
@@ -1194,7 +1355,7 @@ var app = (function () {
     		block,
     		id: create_each_block$1.name,
     		type: "each",
-    		source: "(90:4) {#each ghosts as ghost}",
+    		source: "(50:4) {#each $possibleGhosts as ghost}",
     		ctx
     	});
 
@@ -1223,7 +1384,7 @@ var app = (function () {
     	let ul2;
     	let current;
     	banner = new Banner({ $$inline: true });
-    	let each_value_2 = /*evidence*/ ctx[0];
+    	let each_value_2 = /*evidence*/ ctx[1];
     	validate_each_argument(each_value_2);
     	let each_blocks_2 = [];
 
@@ -1235,7 +1396,7 @@ var app = (function () {
     		each_blocks_2[i] = null;
     	});
 
-    	let each_value_1 = /*evidence*/ ctx[0];
+    	let each_value_1 = /*evidence*/ ctx[1];
     	validate_each_argument(each_value_1);
     	let each_blocks_1 = [];
 
@@ -1247,7 +1408,7 @@ var app = (function () {
     		each_blocks_1[i] = null;
     	});
 
-    	let each_value = /*ghosts*/ ctx[1];
+    	let each_value = /*$possibleGhosts*/ ctx[0];
     	validate_each_argument(each_value);
     	let each_blocks = [];
 
@@ -1299,29 +1460,29 @@ var app = (function () {
     			}
 
     			attr_dev(h20, "class", "svelte-1xa7n74");
-    			add_location(h20, file$3, 67, 5, 2166);
+    			add_location(h20, file$3, 27, 5, 612);
     			attr_dev(li0, "class", "list-title svelte-1xa7n74");
-    			add_location(li0, file$3, 66, 4, 2137);
+    			add_location(li0, file$3, 26, 4, 583);
     			attr_dev(ul0, "class", "evidence svelte-1xa7n74");
-    			add_location(ul0, file$3, 65, 3, 2111);
+    			add_location(ul0, file$3, 25, 3, 557);
     			attr_dev(h21, "class", "svelte-1xa7n74");
-    			add_location(h21, file$3, 77, 5, 2362);
+    			add_location(h21, file$3, 37, 5, 808);
     			attr_dev(li1, "class", "list-title svelte-1xa7n74");
-    			add_location(li1, file$3, 76, 4, 2333);
+    			add_location(li1, file$3, 36, 4, 779);
     			attr_dev(ul1, "class", "exclude svelte-1xa7n74");
-    			add_location(ul1, file$3, 75, 3, 2308);
+    			add_location(ul1, file$3, 35, 3, 754);
     			attr_dev(div0, "class", "checklists svelte-1xa7n74");
-    			add_location(div0, file$3, 64, 2, 2083);
+    			add_location(div0, file$3, 24, 2, 529);
     			attr_dev(h22, "class", "ghosts-title svelte-1xa7n74");
-    			add_location(h22, file$3, 87, 3, 2558);
+    			add_location(h22, file$3, 47, 3, 1004);
     			attr_dev(ul2, "class", "ghosts svelte-1xa7n74");
-    			add_location(ul2, file$3, 88, 3, 2607);
+    			add_location(ul2, file$3, 48, 3, 1053);
     			attr_dev(div1, "class", "ghosts-wrapper svelte-1xa7n74");
-    			add_location(div1, file$3, 86, 2, 2526);
+    			add_location(div1, file$3, 46, 2, 972);
     			attr_dev(main, "class", "svelte-1xa7n74");
-    			add_location(main, file$3, 63, 1, 2074);
+    			add_location(main, file$3, 23, 1, 520);
     			attr_dev(div2, "class", "wrapper svelte-1xa7n74");
-    			add_location(div2, file$3, 61, 0, 2040);
+    			add_location(div2, file$3, 21, 0, 486);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -1364,8 +1525,8 @@ var app = (function () {
     			current = true;
     		},
     		p: function update(ctx, [dirty]) {
-    			if (dirty & /*evidence*/ 1) {
-    				each_value_2 = /*evidence*/ ctx[0];
+    			if (dirty & /*evidence*/ 2) {
+    				each_value_2 = /*evidence*/ ctx[1];
     				validate_each_argument(each_value_2);
     				let i;
 
@@ -1392,8 +1553,8 @@ var app = (function () {
     				check_outros();
     			}
 
-    			if (dirty & /*evidence*/ 1) {
-    				each_value_1 = /*evidence*/ ctx[0];
+    			if (dirty & /*evidence*/ 2) {
+    				each_value_1 = /*evidence*/ ctx[1];
     				validate_each_argument(each_value_1);
     				let i;
 
@@ -1420,8 +1581,8 @@ var app = (function () {
     				check_outros();
     			}
 
-    			if (dirty & /*ghosts*/ 2) {
-    				each_value = /*ghosts*/ ctx[1];
+    			if (dirty & /*$possibleGhosts*/ 1) {
+    				each_value = /*$possibleGhosts*/ ctx[0];
     				validate_each_argument(each_value);
     				let i;
 
@@ -1509,8 +1670,18 @@ var app = (function () {
     }
 
     function instance$3($$self, $$props, $$invalidate) {
+    	let $ghosts;
+    	let $possibleGhosts;
+    	validate_store(ghosts, "ghosts");
+    	component_subscribe($$self, ghosts, $$value => $$invalidate(2, $ghosts = $$value));
+    	validate_store(possibleGhosts, "possibleGhosts");
+    	component_subscribe($$self, possibleGhosts, $$value => $$invalidate(0, $possibleGhosts = $$value));
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots("App", slots, []);
+
+    	onMount(() => {
+    		possibleGhosts.set($ghosts);
+    	});
 
     	let evidence = [
     		{ title: "EMF 5" },
@@ -1521,51 +1692,6 @@ var app = (function () {
     		{ title: "Writing" }
     	];
 
-    	let ghosts = [
-    		{
-    			name: "Phantom",
-    			description: "May be summoned by ouji boards",
-    			strength: "Looking at a phantom will dramatically lower sanity",
-    			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-    			evidence: ["EMF 5", "Ghost orb", "Freezing"]
-    		},
-    		{
-    			name: "Phantom",
-    			description: "May be summoned by ouji boards",
-    			strength: "Looking at a phantom will dramatically lower sanity",
-    			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-    			evidence: ["EMF 5", "Ghost orb", "Freezing"]
-    		},
-    		{
-    			name: "Phantom",
-    			description: "May be summoned by ouji boards",
-    			strength: "Looking at a phantom will dramatically lower sanity",
-    			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-    			evidence: ["EMF 5", "Ghost orb", "Freezing"]
-    		},
-    		{
-    			name: "Phantom",
-    			description: "May be summoned by ouji boards",
-    			strength: "Looking at a phantom will dramatically lower sanity",
-    			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-    			evidence: ["EMF 5", "Ghost orb", "Freezing"]
-    		},
-    		{
-    			name: "Phantom",
-    			description: "May be summoned by ouji boards",
-    			strength: "Looking at a phantom will dramatically lower sanity",
-    			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-    			evidence: ["EMF 5", "Ghost orb", "Freezing"]
-    		},
-    		{
-    			name: "Phantom",
-    			description: "May be summoned by ouji boards",
-    			strength: "Looking at a phantom will dramatically lower sanity",
-    			weakness: "Taking a photo of a phantom will cause it to temporarily disappear",
-    			evidence: ["EMF 5", "Ghost orb", "Freezing"]
-    		}
-    	];
-
     	const writable_props = [];
 
     	Object.keys($$props).forEach(key => {
@@ -1573,23 +1699,26 @@ var app = (function () {
     	});
 
     	$$self.$capture_state = () => ({
+    		onMount,
+    		ghosts,
+    		possibleGhosts,
     		Banner,
     		ChecklistItem,
     		Ghost,
     		evidence,
-    		ghosts
+    		$ghosts,
+    		$possibleGhosts
     	});
 
     	$$self.$inject_state = $$props => {
-    		if ("evidence" in $$props) $$invalidate(0, evidence = $$props.evidence);
-    		if ("ghosts" in $$props) $$invalidate(1, ghosts = $$props.ghosts);
+    		if ("evidence" in $$props) $$invalidate(1, evidence = $$props.evidence);
     	};
 
     	if ($$props && "$$inject" in $$props) {
     		$$self.$inject_state($$props.$$inject);
     	}
 
-    	return [evidence, ghosts];
+    	return [$possibleGhosts, evidence];
     }
 
     class App extends SvelteComponentDev {
